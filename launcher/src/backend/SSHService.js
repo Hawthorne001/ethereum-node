@@ -15,6 +15,7 @@ export class SSHService {
     this.connectionInfo = null;
     this.connected = false;
     this.tunnels = [];
+    this.rpcReceivedDatas = [];
     this.addingConnection = false;
     this.removeConnectionCount = 0;
     this.checkPoolPolling = setInterval(async () => {
@@ -22,6 +23,7 @@ export class SSHService {
     }, 100);
     this.shellConn = null;
     this.shellStream = null;
+    this.loggingOut = false;
   }
 
   static checkExecError(err, accept_empty_result = false) {
@@ -183,6 +185,7 @@ export class SSHService {
 
   async disconnect(reconnecting = false) {
     log.info("DISCONNECT: connectionInfo", this.connectionInfo.host);
+    this.loggingOut = true;
     try {
       this.connected = false;
       if (!reconnecting) {
@@ -211,6 +214,8 @@ export class SSHService {
       return true;
     } catch (error) {
       return error;
+    } finally {
+      this.loggingOut = false;
     }
   }
 
@@ -220,6 +225,7 @@ export class SSHService {
   }
 
   async execCommand(command) {
+    if (this.loggingOut) return { rc: -1, stdout: "", stderr: "Logging Out!" };
     return new Promise((resolve, reject) => {
       let conn = this.getConnectionFromPool();
 
@@ -290,8 +296,87 @@ export class SSHService {
         server.on("error", function (error) {
           log.error("Tunnel connection error: ", error);
         });
+
+        if (tunnelConfig && tunnelConfig.sName) {
+          server.on("connection", (connection) => {
+            // Forward the connection to the destination address and port
+            conn.forwardOut(
+              forwardOptions.srcAddr,
+              forwardOptions.srcPort,
+              forwardOptions.dstAddr,
+              forwardOptions.dstPort,
+              (err, stream) => {
+                if (err) {
+                  log.error("Forwarding error: ", err);
+                  return;
+                }
+                // Track data size for el rpc
+                connection.on("data", (data) => {
+                  stream.write(data);
+                  this.handleReceivedData(data.length, forwardOptions.srcPort);
+                });
+
+                connection.on("end", () => {
+                  stream.end();
+                });
+                stream.on("end", () => {
+                  connection.end();
+                });
+
+                connection.on("error", (error) => {
+                  log.error("Connection error: ", error);
+                  stream.end();
+                });
+
+                stream.on("error", (error) => {
+                  log.error("Stream error: ", error);
+                  connection.end();
+                });
+
+                connection.on("close", () => {
+                  stream.destroy();
+                });
+                stream.on("close", () => {
+                  connection.destroy();
+                });
+              }
+            );
+          });
+        }
       });
     });
+  }
+
+  /**
+   * Handles the received data by storing it in the rpcReceivedDatas array.
+   * @param {number} dataLength - The length of the received data (byte).
+   * @param {number} srcPort - The source port.
+   */
+  async handleReceivedData(dataLength, srcPort) {
+    try {
+      const receivedData = {
+        receivedDataLength: dataLength,
+        srcPort: srcPort,
+      };
+      this.rpcReceivedDatas.push(receivedData);
+    } catch (error) {
+      console.error("Error handling received data:", error);
+    }
+  }
+
+  /**
+   * Retrieves and clears the stored received data.
+   * @returns {Array} - The array of received data objects.
+   */
+  async getRPCReceivedData() {
+    try {
+      const dataToReturn = [...this.rpcReceivedDatas];
+      this.rpcReceivedDatas = [];
+      return dataToReturn;
+    } catch (error) {
+      console.error("Error retrieving and clearing received data:", error);
+      return [];
+    }
   }
 
   async closeTunnels(onlySpecificPorts = []) {
