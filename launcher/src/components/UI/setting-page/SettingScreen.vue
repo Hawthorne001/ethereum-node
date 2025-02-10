@@ -34,6 +34,9 @@ import VolumeSlider from "./components/VolumeSlider";
 import OutputOptions from "./components/OutputOptions.vue";
 import LanguageBtn from "./components/LanguageBtn.vue";
 import CreditButtons from "./section/CreditButtons.vue";
+import IdleTimer from "./components/IdleTimer.vue";
+import LogBackups from "./components/LogBackups.vue";
+import IdleTimerTime from "./components/IdleTimerTime.vue";
 import { ref, computed, onMounted } from "vue";
 import CreditBtn from "./components/CreditBtn.vue";
 import { useRouter } from "vue-router";
@@ -101,6 +104,9 @@ const itemConfigurations = computed(() => {
     items = [
       { title: "Language Selection", component: LanguageBtn },
       { title: "Credits", component: CreditButtons },
+      { title: "Idle Timeout", component: IdleTimer },
+      { title: "Idle Timeout Time (in minutes)", component: IdleTimerTime },
+      { title: "Stereum Log Backups", component: LogBackups },
     ];
   } else if (mainBox.value === "audio") {
     items = [
@@ -115,7 +121,7 @@ const itemConfigurations = computed(() => {
   return items;
 });
 </script>
-<style>
+<style scoped>
 .setting-parent {
   max-height: 488px;
 }

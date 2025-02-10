@@ -33,7 +33,15 @@ export class ValidatorAccountManager {
       }
       return readFileSync(file.path, { encoding: "utf8" });
     });
-
+    //escape all passwords for shell
+    passwords = passwords.map((p) => {
+      let pass = p;
+      if (pass.includes("\\")) pass = pass.replaceAll(/\\/g, "\\\\");
+      // eslint-disable-next-line no-useless-escape
+      if (pass.includes('"')) pass = pass.replaceAll(/"/g, `\"`);
+      if (pass.includes("'")) pass = pass.replaceAll(/'/g, `'\\''`); // yes i tried to escape with \'
+      return pass;
+    });
     for (let i = 0; i < content.length; i += chunkSize) {
       const contentChunk = content.slice(i, i + chunkSize);
       const passwordChunk = passwords.slice(i, i + chunkSize);
@@ -221,23 +229,38 @@ export class ValidatorAccountManager {
     this.nodeConnection.taskManager.otherTasksHandler(ref, `Listing Keys`);
     try {
       let client = await this.nodeConnection.readServiceConfiguration(serviceID);
-      const result = await this.keymanagerAPI(client, "GET", "/eth/v1/keystores");
+      let data = {};
+      if (client.service === "CharonService" || client.service === "SSVNetworkService") {
+        const keys = await this.getDVTKeys(serviceID);
+        data.data = keys.map((dv) => {
+          return {
+            validating_pubkey: client.service === "CharonService" ? dv.distributed_public_key : "0x" + dv.public_key,
+            derivation_path: "",
+            readonly: false,
+            dvt: true,
+          };
+        });
+        //Push successful task
+        this.nodeConnection.taskManager.otherTasksHandler(ref, `Get Keys`, true, JSON.stringify(data.data, null, 2));
+      } else {
+        const result = await this.keymanagerAPI(client, "GET", "/eth/v1/keystores");
 
-      //Error handling
-      if (SSHService.checkExecError(result) && result.stderr) throw SSHService.extractExecError(result);
-      if (!result.stdout)
-        throw `ReturnCode: ${result.rc}\nStderr: ${result.stderr}\nStdout: ${result.stdout}\nIs Your Consensus Client Running?`;
+        //Error handling
+        if (SSHService.checkExecError(result) && result.stderr) throw SSHService.extractExecError(result);
+        if (!result.stdout)
+          throw `ReturnCode: ${result.rc}\nStderr: ${result.stderr}\nStdout: ${result.stdout}\nIs Your Consensus Client Running?`;
 
-      const data = JSON.parse(result.stdout);
-      if (data.data === undefined) {
-        if (data.code === undefined || data.message === undefined) {
-          throw "Undexpected Error: " + result;
+        data = JSON.parse(result.stdout);
+        if (data.data === undefined) {
+          if (data.code === undefined || data.message === undefined) {
+            throw "Undexpected Error: " + result;
+          }
+          throw data.code + " " + data.message;
         }
-        throw data.code + " " + data.message;
-      }
 
-      //Push successful task
-      this.nodeConnection.taskManager.otherTasksHandler(ref, `Get Keys`, true, result.stdout);
+        //Push successful task
+        this.nodeConnection.taskManager.otherTasksHandler(ref, `Get Keys`, true, result.stdout);
+      }
 
       if (!data.data) data.data = [];
       this.writeKeys(data.data.map((key) => key.validating_pubkey));
@@ -300,7 +323,7 @@ export class ValidatorAccountManager {
       apiToken ? `-H 'Authorization: Bearer ${apiToken}'` : "",
       `-s`,
     ];
-    if (data) command.push(`-d '${JSON.stringify(data)}'`);
+    if (data) command.push(`-d '${JSON.stringify(data).replaceAll(/\\\\/g, "\\")}'`);
     command = command.concat(args);
     return await this.nodeConnection.sshService.exec(command.join(" "));
   }
@@ -1068,13 +1091,54 @@ export class ValidatorAccountManager {
       let charonClient = services.find((service) => service.service === "CharonService");
       if (!charonClient) throw "Couldn't find CharonService";
       const dataDir = path.posix.join(charonClient.getDataDir(), ".charon");
-      this.nodeConnection.sshService.exec(`rm -rf ${dataDir}`);
+      await this.nodeConnection.sshService.exec(`rm -rf ${dataDir}`);
       const result = await this.nodeConnection.sshService.uploadDirectorySSH(path.normalize(localPath), dataDir);
       if (result) {
         log.info("Obol Backup uploaded from: ", localPath);
       }
     } catch (err) {
       log.error("Error uploading Obol Backup: ", err);
+    }
+  }
+
+  async getDVTKeys(serviceID) {
+    const service = (await this.serviceManager.readServiceConfigurations()).find((s) => s.id === serviceID);
+    if (!service) throw new Error(`Service with id ${serviceID} not found`);
+    switch (service.service) {
+      case "CharonService": {
+        const result = await this.nodeConnection.sshService.exec(service.getReadClusterLockCommand());
+        const clusterLock = JSON.parse(result.stdout);
+        return clusterLock.distributed_validators;
+      }
+      case "SSVNetworkService": {
+        const ssvConfig = await this.nodeConnection.getSSVTotalConfig(serviceID);
+        //Get Operator ID
+        const response = await axios.get(
+          `https://api.ssv.network/api/v4/${service.network}/operators/public_key/` + ssvConfig.privateKeyFileData.publicKey
+        );
+        if (response.status !== 200 && !response?.data?.data?.id)
+          throw new Error(`Couldn't get Operator ID from SSV Network ${response.status} ${response.statusText}`);
+        const operatorID = response.data.data.id;
+
+        //get pagination info
+        let result = await axios.get(
+          `https://api.ssv.network/api/v4/${service.network}/validators/in_operator/${operatorID}?page=${1}&perPage=100`
+        );
+        if (result.status !== 200) throw new Error(`Couldn't get Validator Keys from SSV Network ${result.status} ${result.statusText}`);
+
+        //get all pages and concat them
+        for (let i = 2; i <= result.data.pagination.pages; i++) {
+          const page = await axios.get(
+            `https://api.ssv.network/api/v4/${service.network}/validators/in_operator/${operatorID}?page=${i}&perPage=100`
+          );
+          if (page.status !== 200) throw new Error(`Couldn't get Validator Keys from SSV Network ${page.status} ${page.statusText}`);
+          result.data.validators = result.data.validators.concat(page.data.validators);
+        }
+
+        return result.data.validators;
+      }
+      default:
+        throw new Error(`Service ${service.service} not supported`);
     }
   }
 }

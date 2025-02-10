@@ -66,7 +66,7 @@ const getConfirmText = computed(() => {
     } else if (
       props.client.category === "consensus" ||
       (props.client.category === "validator" && !/Web3Signer/.test(props.client.service)) ||
-      /LidoObolExit|ValidatorEjector/.test(props.client.service)
+      /LidoObolExit|ValidatorEjector|KeysAPI/.test(props.client.service)
     ) {
       text = "next";
     } else if (props.client.category === "service" && props.client.service !== "FlashbotsMevBoostService") {
@@ -97,10 +97,8 @@ const getSubTitles = computed(() => {
 const externalServiceConfirmBtn = computed(() => {
   if (props.client.service === "ExternalExecutionService") {
     return props.client.config.source === "" || props.client.config.jwtToken === "";
-  } else if (props.client.service === "ExternalConsensusService" && manageStore.externalConsensusSelectedService !== "prysm") {
+  } else if (props.client.service === "ExternalConsensusService") {
     return props.client.config.source === "";
-  } else if (props.client.service === "ExternalConsensusService" && manageStore.externalConsensusSelectedService === "prysm") {
-    return props.client.config.source === "" || props.client.config.gateway === "";
   }
   return false;
 });
@@ -120,7 +118,7 @@ const confirmInstall = () => {
   } else if (
     (props.client.category === "consensus" && getConfirmText.value === "next") ||
     (props.client.category === "validator" && getConfirmText.value === "next") ||
-    /LidoObolExit|ValidatorEjector/.test(props.client.service)
+    /LidoObolExit|ValidatorEjector|KeysAPI/.test(props.client.service)
   ) {
     isAddPanelActivated.value = false;
     isModifyActivated.value = true;

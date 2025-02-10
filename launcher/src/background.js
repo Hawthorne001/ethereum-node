@@ -1,6 +1,6 @@
 "use strict";
 
-import { app, protocol, BrowserWindow, shell, dialog, Menu, ipcMain } from "electron";
+import { app, protocol, BrowserWindow, shell, dialog, ipcMain, Menu } from "electron";
 import { createProtocol } from "vue-cli-plugin-electron-builder/lib";
 import { StorageService } from "./storageservice.js";
 import { NodeConnection } from "./backend/NodeConnection.js";
@@ -14,9 +14,11 @@ import { ConfigManager } from "./backend/ConfigManager.js";
 import { AuthenticationService } from "./backend/AuthenticationService.js";
 import { TekuGasLimitConfig } from "./backend/TekuGasLimitConfig.js";
 import { SSHService } from "./backend/SSHService.js";
+import { ProtocolHandler } from "./backend/CustomUrlProtocol.js";
 import path from "path";
-import { readFileSync } from "fs";
+import { readFileSync, existsSync, mkdirSync, renameSync, readdir, rmSync } from "fs";
 import url from "url";
+import { checkSigningKeys, getSigningKeysWithQueueInfo } from "./backend/web3/CSM.js";
 const isDevelopment = process.env.NODE_ENV !== "production";
 const nodeConnection = new NodeConnection();
 const storageService = new StorageService();
@@ -33,9 +35,42 @@ const sshService = new SSHService();
 const { globalShortcut } = require("electron");
 const log = require("electron-log");
 const stereumUpdater = new StereumUpdater(log, createWindow, isDevelopment);
+const protocolHandler = new ProtocolHandler(storageService);
 stereumUpdater.initUpdater();
 log.transports.console.level = process.env.LOG_LEVEL || "info";
 log.transports.file.level = "debug";
+log.transports.file.archiveLogFn = async (file) => {
+  file = file.toString();
+  const info = path.parse(file);
+  let backupPath = info.dir + "/backups/";
+  if (!existsSync(backupPath)) {
+    mkdirSync(backupPath);
+  }
+
+  renameSync(file, `${backupPath}main-${Date.now()}.log`);
+
+  let backupLogs = [];
+  let backupAmount = 3;
+
+  const storedConfig = await storageService.readConfig();
+  if (storedConfig.logBackups) {
+    backupAmount = storedConfig.logBackups.value;
+  }
+
+  readdir(backupPath, (err, files) => {
+    files.forEach((file) => {
+      backupLogs.push(file);
+    });
+    if (backupLogs.length > backupAmount) {
+      backupLogs.reverse();
+      for (let i = backupAmount; i < backupLogs.length; i++) {
+        rmSync(backupPath + backupLogs[i], { force: true }, (err) => {
+          if (err) throw err;
+        });
+      }
+    }
+  });
+};
 
 let remoteHost = {};
 
@@ -101,6 +136,15 @@ ipcMain.handle("closeTunnels", async () => {
 ipcMain.handle("logout", async () => {
   await monitoring.logout();
   return await nodeConnection.logout();
+});
+
+ipcMain.handle("idleTimerCheck", async (event, args) => {
+  const current_window = event.sender;
+  return await monitoring.idleTimerCheck(args.timerStop, current_window);
+});
+
+ipcMain.handle("setIdleTime", async (event, arg) => {
+  return await monitoring.setIdleTime(arg);
 });
 
 // userData storage
@@ -445,6 +489,10 @@ ipcMain.handle("writePrometheusConfig", async (event, args) => {
   return await nodeConnection.writePrometheusConfig(args.serviceID, args.config);
 });
 
+ipcMain.handle("getCPUTemperature", async () => {
+  return await monitoring.getCPUTemperature();
+});
+
 ipcMain.handle("getValidatorStats", async (event, args) => {
   return await monitoring.getValidatorStats(args);
 });
@@ -681,6 +729,26 @@ ipcMain.handle("checkConnectionQuality", async (event, args) => {
   return await nodeConnection.sshService.checkConnectionQuality(args);
 });
 
+ipcMain.handle("writeGenesisJsonDevnet", async (event, args) => {
+  return await serviceManager.writeGenesisJsonDevnet(args);
+});
+
+ipcMain.handle("writeConfigYamlDevnet", async (event, args) => {
+  return await serviceManager.writeConfigYamlDevnet(args);
+});
+
+ipcMain.handle("initGenesis", async () => {
+  return await serviceManager.initGenesis();
+});
+
+ipcMain.handle("removeConfigGenesisCopy", async () => {
+  return await serviceManager.removeConfigGenesisCopy();
+});
+
+ipcMain.handle("startServicesForSetup", async (event, args) => {
+  return await serviceManager.startServicesForSetup(args);
+});
+
 ipcMain.handle("startShell", async (event) => {
   if (!nodeConnection.sshService.shellStream) {
     try {
@@ -748,6 +816,10 @@ ipcMain.handle("fetchObolCharonAlerts", async () => {
   return await monitoring.fetchObolCharonAlerts();
 });
 
+ipcMain.handle("getSubnetSubs", async () => {
+  return await monitoring.getSubnetSubs();
+});
+
 ipcMain.handle("fetchCsmAlerts", async () => {
   return await monitoring.fetchCsmAlerts();
 });
@@ -768,9 +840,30 @@ ipcMain.handle("deleteSlasherVolume", async (event, args) => {
   return await serviceManager.deleteSlasherVolume(args);
 });
 
+ipcMain.handle("fetchCurrentTimeZone", async () => {
+  return await monitoring.fetchCurrentTimeZone();
+});
+
+ipcMain.handle("getCSMQueue", async (event, args) => {
+  return await checkSigningKeys(args.keysArray, monitoring);
+});
+
+ipcMain.handle("getSigningKeysWithQueueInfo", async () => {
+  return await getSigningKeysWithQueueInfo(monitoring);
+});
+
+ipcMain.handle("getObolClusterInformation", async (event, args) => {
+  return await monitoring.getObolClusterInformation(args.serviceID);
+});
+
+ipcMain.handle("getSSVClusterInformation", async (event, args) => {
+  return await monitoring.getSSVClusterInformation(args.serviceID);
+});
+
 // Scheme must be registered before the app is ready
 protocol.registerSchemesAsPrivileged([{ scheme: "app", privileges: { secure: true, standard: true } }]);
 
+let mainWindow = null;
 async function createWindow(type = "main") {
   // Create the browser window.
 
@@ -818,6 +911,9 @@ async function createWindow(type = "main") {
     } else {
       win.loadURL("app://./index.html");
     }
+
+    mainWindow = win;
+    return win;
   }
 
   win.on("ready-to-show", async () => {
@@ -900,12 +996,8 @@ async function createWindow(type = "main") {
 // Disable CTRL+R and F5 in build
 if (!isDevelopment) {
   app.on("browser-window-focus", function () {
-    globalShortcut.register("CommandOrControl+R", () => {
-      // console.log("CommandOrControl+R is pressed: Shortcut Disabled");
-    });
-    globalShortcut.register("F5", () => {
-      // console.log("F5 is pressed: Shortcut Disabled");
-    });
+    globalShortcut.register("CommandOrControl+R", () => {});
+    globalShortcut.register("F5", () => {});
   });
   app.on("browser-window-blur", function () {
     globalShortcut.unregister("CommandOrControl+R");
@@ -915,8 +1007,6 @@ if (!isDevelopment) {
 
 // Quit when all windows are closed.
 app.on("window-all-closed", () => {
-  // On macOS it is common for applications and their menu bar
-  // to stay active until the user quits explicitly with Cmd + Q
   nodeConnection.logout();
   if (process.platform !== "darwin") {
     app.quit();
@@ -924,14 +1014,10 @@ app.on("window-all-closed", () => {
 });
 
 app.on("activate", () => {
-  // On macOS it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
 app.on("web-contents-created", (event, contents) => {
-  // open every new window in the OS's default browser instead of a
-  // new Electron windows.
   contents.setWindowOpenHandler((details) => {
     const parsedUrl = new url.URL(details.url);
     if (["https:", "http:", "mailto:"].includes(parsedUrl.protocol)) {
@@ -941,30 +1027,72 @@ app.on("web-contents-created", (event, contents) => {
   });
 });
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
 app.on("ready", async () => {
-  // workaround for linux whitescreen
-  // if(process.platform === "linux"){
-  //   app.commandLine.appendSwitch('--no-sandbox')
-  // }
+  if (process.env.WEBPACK_DEV_SERVER_URL) {
+    // Development mode
+    app.setAsDefaultProtocolClient("stereumlauncher", process.execPath, [path.resolve(process.argv[1])]);
+  } else {
+    // Production mode
+    app.setAsDefaultProtocolClient("stereumlauncher");
 
-  // Disable "View" and "Window" Menu items in build (since CTRL+R and F5 is disabled also)
-  if (!isDevelopment) {
+    // Disable "View" and "Window" Menu items in build
     const hideMenuItems = ["viewmenu", "windowmenu"];
     var menu = Menu.getApplicationMenu();
     menu.items.filter((item) => hideMenuItems.includes(item.role)).map((item) => (item.visible = false));
     Menu.setApplicationMenu(menu);
+
+    // Check for updates in production
     stereumUpdater.checkForUpdates();
+  }
+
+  await createWindow();
+});
+
+// Handle the protocol on Windows and Linux
+if (process.platform === "win32" || process.platform === "linux") {
+  const gotTheLock = app.requestSingleInstanceLock();
+
+  if (!gotTheLock) {
+    app.quit();
   } else {
-    // remove the comment if you try to debug the updater in dev mode
-    // await stereumUpdater.runDebug()
-    createWindow();
+    app.on("second-instance", async (event, argv) => {
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
+
+        const url = argv.find((arg) => arg.startsWith("stereumlauncher://"));
+        if (url) {
+          await protocolHandler.handleCustomUrl(url);
+        }
+      }
+    });
+  }
+}
+
+// Handle the protocol on macOS
+if (process.platform === "darwin") {
+  app.on("open-url", async (event, url) => {
+    event.preventDefault();
+
+    // If app is not ready, wait for it
+    if (!mainWindow) {
+      app.on("ready", async () => {
+        await protocolHandler.handleCustomUrl(url);
+      });
+    } else {
+      await protocolHandler.handleCustomUrl(url);
+    }
+  });
+}
+
+// Handle URLs from command line arguments (works for all platforms)
+app.on("ready", async () => {
+  const protocolUrl = process.argv.find((arg) => arg.startsWith("stereumlauncher://"));
+  if (protocolUrl) {
+    await protocolHandler.handleCustomUrl(protocolUrl);
   }
 });
 
-// Exit cleanly on request from parent process in development mode.
 if (isDevelopment) {
   if (process.platform === "win32") {
     process.on("message", (data) => {

@@ -18,8 +18,8 @@
 
     <div
       v-else
-      class="col-start-1 relative p-1 grid rounded-[4px] border border-gray-600"
-      :class="route.path === '/edit' ? 'col-end-6 grid-cols-9' : 'col-span-full  grid-cols-12'"
+      class="col-start-1 relative p-1 grid rounded-[4px]"
+      :class="[dynamicClasses, border ? 'border border-gray-600' : '']"
       @click="toggleDropdown"
     >
       <span
@@ -66,7 +66,7 @@
         @mouseleave="isOpen = false"
       >
         <div
-          v-if="(setupStore.isConfigViewActive || setupStore.isEditConfigViewActive) && notShowServerViewInControl"
+          v-if="setupStore.isConfigViewActive || setupStore.isEditConfigViewActive"
           class="p-2 bg-gray-300 capitalize transition-colors duration-300 transform text-[#336666] hover:bg-blue-300 cursor-pointer grid grid-cols-6 items-center"
           @click="selectServerView"
         >
@@ -114,7 +114,7 @@ import RenameSetup from "./RenameSetup.vue";
 import { useServices } from "@/store/services";
 import { useDeepClone } from "@/composables/utils";
 
-const { newHeight } = defineProps({
+const { newHeight, border } = defineProps({
   list: {
     type: Array,
     required: true,
@@ -123,6 +123,11 @@ const { newHeight } = defineProps({
     type: String,
     required: false,
     default: "h-full",
+  },
+  border: {
+    type: Boolean,
+    required: false,
+    default: false,
   },
 });
 
@@ -153,6 +158,8 @@ const setupsList = computed(() => {
   return useDeepClone(output);
 });
 
+const dynamicClasses = computed(() => [route.path === "/edit" ? "col-end-6 grid-cols-9" : "col-span-full grid-cols-12"]);
+
 const getDropdownWidth = computed(() => {
   let width;
   if (route.path === "/edit") {
@@ -167,10 +174,6 @@ const getDropdownWidth = computed(() => {
     width = "w-48";
   }
   return width;
-});
-
-const notShowServerViewInControl = computed(() => {
-  return route.path !== "/control";
 });
 
 const getSelectedOption = computed(() => {
@@ -197,9 +200,9 @@ watch(
 const noValidatorHandler = (setup) => {
   return !!(route.path === "/staking" && setup.noValidator);
 };
-
+// setupsList.value.length > 1 &&
 const toggleDropdown = () => {
-  if (setupsList.value.length > 1 && route.path === "/control") {
+  if (route.path === "/control") {
     isOpen.value = !isOpen.value;
   } else if (setupsList.value.length > 0 && route.path !== "/control") {
     isOpen.value = !isOpen.value;

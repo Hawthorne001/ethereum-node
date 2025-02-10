@@ -3,6 +3,7 @@
     class="w-full h-full col-start-1 col-span-full row-start-1 row-span-1 bg-black rounded-md grid grid-cols-6 grid-rows-1 items-center px-2"
   >
     <img
+      v-if="getServiceIcon !== null"
       class="w-5 h-5 col-start-1 col-span-1"
       :src="getServiceIcon"
       alt="Service Icon"
@@ -10,8 +11,18 @@
       @mouseenter="footerStore.cursorLocation = `${valClint}`"
       @mouseleave="footerStore.cursorLocation = ''"
     />
+    <img
+      v-else
+      class="w-5 h-5 col-start-1 col-span-1"
+      src="/animation/loading/loading-circle.gif"
+      alt="Service Icon"
+      @mousedown.prevent
+      @mouseenter="footerStore.cursorLocation = `${valClint}`"
+      @mouseleave="footerStore.cursorLocation = ''"
+    />
 
     <div
+      v-if="getServiceIcon !== null"
       class="col-start-2 col-end-5 flex justify-center items-center space-x-1 relative"
       @mouseenter="footerStore.cursorLocation = `${valStat}`"
       @mouseleave="footerStore.cursorLocation = ''"
@@ -42,10 +53,10 @@
 </template>
 
 <script setup>
-import { computed, watch } from "vue";
-import { useStakingStore } from "@/store/theStaking";
-import { useFooter } from "@/store/theFooter";
 import i18n from "@/includes/i18n";
+import { useFooter } from "@/store/theFooter";
+import { useStakingStore } from "@/store/theStaking";
+import { computed, watch } from "vue";
 
 const t = i18n.global.t;
 
@@ -57,33 +68,35 @@ const numValidator = t("displayValidator.numValidator");
 
 const stakingStore = useStakingStore();
 
-const getServiceState = computed(() => {
-  return stakingStore.selectedServiceToFilter?.state;
+const getServiceIcon = computed(() => {
+  return stakingStore.selectedServiceToFilter?.icon ?? null;
 });
 
-const getServiceIcon = computed(() => {
-  return stakingStore.selectedServiceToFilter?.icon;
+const getServiceState = computed(() => {
+  let state;
+  if (stakingStore.selectedServiceToFilter?.state === "running") {
+    state = "online";
+  } else {
+    state = "offline";
+  }
+  return state;
 });
 
 const getTextColor = computed(() => {
-  if (getServiceState.value === "running") {
+  if (getServiceState.value === "online") {
     return "text-green-500";
-  } else if (getServiceState.value === "off") {
+  } else if (getServiceState.value === "offline") {
     return "text-red-500";
-  } else if (getServiceState.value === "restarting") {
-    return "text-amber-400";
   }
 
   return "text-gray-500";
 });
 
 const getStateColor = computed(() => {
-  if (getServiceState.value === "running") {
+  if (getServiceState.value === "online") {
     return "bg-green-400";
-  } else if (getServiceState.value === "off") {
+  } else if (getServiceState.value === "offline") {
     return "bg-red-500";
-  } else if (getServiceState.value === "restarting") {
-    return "bg-amber-400";
   }
 
   return "bg-gray-500";

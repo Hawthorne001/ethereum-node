@@ -5,20 +5,37 @@
     @mousedown.prevent.stop
   >
     <div class="w-full h-full row-start-2 row-span-full grid grid-rows-12 items-center justify-start">
+      <!-- All Keys Button -->
       <div
-        v-for="(item, index) in installedValidators"
-        :key="item.config?.serviceID"
-        class="w-9 h-9 max-h-[35px] row-span-1 py-1 rounded-r-full text-gray-700 focus:outline-nones transition-colors duration-200 flex justify-center items-center cursor-pointer"
+        v-if="showAllKeysButton"
+        class="w-9 h-9 max-h-[35px] row-span-1 py-1 rounded-r-full text-gray-700 transition-colors duration-200 flex justify-center items-center cursor-pointer"
         :class="{
-          'bg-[#336666] shadow-md shadow-[#191a1b] animate__animated animate__slideInLeft animate__faster pointer-events-none':
-            currentService === item.config?.serviceID,
-          'bg-[#202123] border border-gray-600': currentService !== item.config?.serviceID,
+          'bg-[#336666] border-2 border-l-0 border-lime-300 shadow-md shadow-[#191a1b] animate__animated animate__slideInLeft animate__faster pointer-events-none':
+            stakingStore.displayAllKeysActive,
+          'bg-[#336666] border-gray-400': !stakingStore.displayAllKeysActive,
         }"
-        @click="getService(index)"
+        @click="clearServiceFilter"
+        @mouseenter="footerStore.cursorLocation = `All Keys`"
+        @mouseleave="[(footerStore.cursorLocation = ''), (hoveredIndex = null)]"
+      >
+        <span class="w-7 h-7 rounded-full text-center text-xs text-gray-200 p-2">All</span>
+      </div>
+
+      <!-- Validator Buttons -->
+      <div
+        v-for="item in installedValidators"
+        :key="item.config?.serviceID"
+        class="w-9 h-9 max-h-[35px] row-span-1 py-1 rounded-r-full text-gray-700 transition-colors duration-200 flex justify-center items-center cursor-pointer"
+        :class="[
+          item.setupColor === 'default' ? 'bg-[#336666]' : setupStore.getBGColor(item.setupColor),
+          currentService === item.config?.serviceID
+            ? 'shadow-md shadow-[#191a1b] animate__animated animate__slideInLeft animate__faster pointer-events-none'
+            : 'bg-[#202123] border border-gray-600',
+        ]"
+        @click="filterByService(item)"
         @mouseenter="footerStore.cursorLocation = `Filter by ${item.name}`"
         @mouseleave="[(footerStore.cursorLocation = ''), (hoveredIndex = null)]"
       >
-        <!-- Main Button: Always visible -->
         <img
           :src="item.icon"
           :alt="`${item.service} Icon`"
@@ -28,102 +45,101 @@
           }"
           @mousedown.prevent
         />
-
-        <!-- Detailed Button: Appears on hover -->
-
-        <button
-          v-if="hoveredIndex === index"
-          class="w-36 h-9 absolute left-1 py-1 px-2 rounded-md bg-gray-700 border border-gray-500 flex justify-start items-center z-10 space-x-2 animate__animated animate__slideInLeft cursor-pointer"
-          @click="filterByService(item)"
-        >
-          <img class="w-6" :src="item.icon" :alt="`${item.name} Icon`" />
-          <span class="text-xs text-gray-200 font-semibold">{{ item.name }}</span>
-        </button>
       </div>
     </div>
   </aside>
 </template>
+
 <script setup>
 import { useServices } from "@/store/services";
 import { useSetups } from "@/store/setups";
 import { useFooter } from "@/store/theFooter";
 import { useStakingStore } from "@/store/theStaking";
 import { computed, onMounted, ref, watch } from "vue";
+import { useObolStats, useSSVStats } from "../../../../composables/validators";
 
 const setupStore = useSetups();
 const footerStore = useFooter();
 const stakingStore = useStakingStore();
 const serviceStore = useServices();
+
 const currentService = ref(null);
-
 const hoveredIndex = ref(null);
+const isInitialMount = ref(true);
 
-//Computed
 const installedValidators = computed(() => {
-  let services = [];
-  if (setupStore.selectedSetup === null) {
-    services = serviceStore.installedServices.filter((s) => s.category === "validator" && !/SSVNetwork|Charon/.test(s.service));
-  } else {
-    services = serviceStore.installedServices
-      .filter(
-        (s) =>
-          s.category === "validator" &&
-          !/SSVNetwork|Charon/.test(s.service) &&
-          setupStore.selectedSetup?.services?.map((s) => s.config.serviceID).includes(s.config.serviceID)
-      )
-      .map((service) => ({ ...service, selected: false }));
+  if (!setupStore.selectedSetup) {
+    return serviceStore.installedServices.filter((s) => s.category === "validator");
   }
-  return services.sort((a, b) => a.name.localeCompare(b.name));
+  return serviceStore.installedServices
+    .filter(
+      (s) =>
+        s.category === "validator" && setupStore.selectedSetup.services?.map((setup) => setup.config.serviceID).includes(s.config.serviceID)
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
 });
 
-//Lifecycle Hooks
-onMounted(() => {
-  getCurrentService();
-  getActiveValidator();
-});
+const showAllKeysButton = computed(() => installedValidators.value.length > 1);
 
-//Methods
-
-const getCurrentService = () => {
-  if (setupStore.selectedSetup) {
-    const matchingService = installedValidators.value.find((validator) =>
-      setupStore.selectedSetup.services.some((service) => service.id === validator.config?.serviceID)
-    );
-    currentService.value = matchingService?.config?.serviceID;
-  } else {
-    currentService.value = installedValidators.value[0]?.config?.serviceID;
-  }
+const clearServiceFilter = () => {
+  stakingStore.selectedServiceToFilter = null;
+  currentService.value = null;
+  stakingStore.displayAllKeysActive = true;
 };
 
-const getActiveValidator = () => {
-  if (setupStore.selectedSetup) {
-    stakingStore.selectedServiceToFilter = installedValidators.value.find(
-      (service) => service.setupId === setupStore.selectedSetup?.setupId
-    );
-  } else {
-    stakingStore.selectedServiceToFilter = installedValidators.value[0];
-  }
+const selectSingleValidator = (validator) => {
+  currentService.value = validator.config?.serviceID;
+  stakingStore.selectedServiceToFilter = validator;
+  stakingStore.displayAllKeysActive = false;
+  filterKeys();
+  useObolStats();
+  useSSVStats();
 };
 
-const getService = (index) => {
-  hoveredIndex.value = null;
-  hoveredIndex.value = index;
+const filterKeys = () => {
+  stakingStore.keys?.filter((key) =>
+    stakingStore.displayAllKeysActive ? true : key.validatorID === stakingStore.selectedServiceToFilter?.config?.serviceID
+  ) || [];
 };
 
 const filterByService = (item) => {
   currentService.value = item.config?.serviceID;
   stakingStore.selectedServiceToFilter = item;
-  stakingStore.isGroupListActive = false;
-  stakingStore.currentGroup = null;
+  stakingStore.displayAllKeysActive = false;
+  filterKeys();
+  useObolStats();
+  useSSVStats();
 };
 
 watch(
-  () => setupStore.selectedSetup,
+  () => stakingStore.displayAllKeysActive,
   () => {
-    getCurrentService();
-    getActiveValidator();
+    filterKeys();
   }
 );
+
+watch(
+  () => installedValidators.value,
+  (newValidators) => {
+    if (isInitialMount.value) {
+      if (newValidators.length === 1) {
+        selectSingleValidator(newValidators[0]);
+      } else {
+        clearServiceFilter();
+      }
+      isInitialMount.value = false;
+    }
+  },
+  { immediate: true }
+);
+
+onMounted(() => {
+  if (installedValidators.value.length === 1) {
+    selectSingleValidator(installedValidators.value[0]);
+  } else {
+    clearServiceFilter();
+  }
+});
 </script>
 
 <style scoped>

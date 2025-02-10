@@ -19,7 +19,7 @@
             {{ item.category }}
             <span v-if="item.category != 'service'">client</span>
           </p>
-          <span class="text-sm text-gray-200">ID: {{ item.config.serviceID }}</span>
+          <span class="text-sm text-gray-200">ID: {{ item.config?.serviceID }}</span>
         </div>
       </div>
 
@@ -43,49 +43,53 @@
             <img v-else src="/img/icon/task-manager-icons/down.png" alt="" />
           </div>
         </div>
-        <div
-          v-if="item.service === 'SSVNetworkService' && !isExpertModeActive && !prometheusExpertModeActive"
-          class="dataTitleBox w-full h-10 bg-[#242529] rounded-xl shadow-2xl text-gray-300"
-          @click="openSSVExpertMode"
-        >
-          <img class="titleIcon" src="/img/icon/service-setting-icons/ssv-config.png" alt="icon" />
-          <span class="col-start-2 col-span-4 row-start-1 row-span-2 justify-start items-center flex w-full h-full">SSV Configuration</span>
-          <div class="arrow-box col-start-12 col-span-1 row-start-1 row-span-2 justify-end items-center flex w-full h-full">
-            <img v-if="ssvExpertModeActive" src="/img/icon/task-manager-icons/up.png" alt="" />
-            <img v-else src="/img/icon/task-manager-icons/down.png" alt="" />
-          </div>
-        </div>
-        <!-- DKG START -->
-        <div
-          v-if="item.service === 'SSVDKGService' && !ssvExpertModeActive && !isExpertModeActive && !prometheusExpertModeActive"
-          class="dataTitleBox w-full h-10 bg-[#242529] rounded-xl shadow-2xl text-gray-300"
-          @click="openSSVDKGExpertMode"
-        >
-          <img class="titleIcon" src="/img/icon/service-setting-icons/ssv-config.png" alt="icon" />
-          <span class="col-start-2 col-span-4 row-start-1 row-span-2 justify-start items-center flex w-full h-full"
-            >SSV DKG Configuration</span
-          >
-          <div class="arrow-box col-start-12 col-span-1 row-start-1 row-span-2 justify-end items-center flex w-full h-full">
-            <img v-if="ssvDkgExpertModeActive" src="/img/icon/task-manager-icons/up.png" alt="" />
-            <img v-else src="/img/icon/task-manager-icons/down.png" alt="" />
-          </div>
-        </div>
-        <!-- DKG END -->
-        <div
-          v-if="item.service === 'PrometheusService' && !isExpertModeActive"
-          class="dataTitleBox w-full h-10 bg-[#242529] rounded-xl shadow-2xl text-gray-300"
-          @click="openPrometheusExpertMode"
-        >
-          <span class="col-start-2 col-span-4 row-start-1 row-span-2 justify-start items-center flex w-full h-full"
-            >Prometheus Configuration</span
-          >
-          <div class="arrow-box col-start-12 col-span-1 row-start-1 row-span-2 justify-end items-center flex w-full h-full">
-            <img v-if="prometheusExpertModeActive" src="/img/icon/task-manager-icons/up.png" alt="" />
-            <img v-else src="/img/icon/task-manager-icons/down.png" alt="" />
-          </div>
-        </div>
 
-        <!--
+        <template v-if="selectedSetup?.network !== 'devnet'">
+          <div
+            v-if="item.service === 'SSVNetworkService' && !isExpertModeActive && !prometheusExpertModeActive"
+            class="dataTitleBox w-full h-10 bg-[#242529] rounded-xl shadow-2xl text-gray-300"
+            @click="openSSVExpertMode"
+          >
+            <img class="titleIcon" src="/img/icon/service-setting-icons/ssv-config.png" alt="icon" />
+            <span class="col-start-2 col-span-4 row-start-1 row-span-2 justify-start items-center flex w-full h-full"
+              >SSV Configuration</span
+            >
+            <div class="arrow-box col-start-12 col-span-1 row-start-1 row-span-2 justify-end items-center flex w-full h-full">
+              <img v-if="ssvExpertModeActive" src="/img/icon/task-manager-icons/up.png" alt="" />
+              <img v-else src="/img/icon/task-manager-icons/down.png" alt="" />
+            </div>
+          </div>
+          <!-- DKG START -->
+          <div
+            v-if="item.service === 'SSVDKGService' && !ssvExpertModeActive && !isExpertModeActive && !prometheusExpertModeActive"
+            class="dataTitleBox w-full h-10 bg-[#242529] rounded-xl shadow-2xl text-gray-300"
+            @click="openSSVDKGExpertMode"
+          >
+            <img class="titleIcon" src="/img/icon/service-setting-icons/ssv-config.png" alt="icon" />
+            <span class="col-start-2 col-span-4 row-start-1 row-span-2 justify-start items-center flex w-full h-full"
+              >SSV DKG Configuration</span
+            >
+            <div class="arrow-box col-start-12 col-span-1 row-start-1 row-span-2 justify-end items-center flex w-full h-full">
+              <img v-if="ssvDkgExpertModeActive" src="/img/icon/task-manager-icons/up.png" alt="" />
+              <img v-else src="/img/icon/task-manager-icons/down.png" alt="" />
+            </div>
+          </div>
+          <!-- DKG END -->
+          <div
+            v-if="item.service === 'PrometheusService' && !isExpertModeActive"
+            class="dataTitleBox w-full h-10 bg-[#242529] rounded-xl shadow-2xl text-gray-300"
+            @click="openPrometheusExpertMode"
+          >
+            <span class="col-start-2 col-span-4 row-start-1 row-span-2 justify-start items-center flex w-full h-full"
+              >Prometheus Configuration</span
+            >
+            <div class="arrow-box col-start-12 col-span-1 row-start-1 row-span-2 justify-end items-center flex w-full h-full">
+              <img v-if="prometheusExpertModeActive" src="/img/icon/task-manager-icons/up.png" alt="" />
+              <img v-else src="/img/icon/task-manager-icons/down.png" alt="" />
+            </div>
+          </div>
+
+          <!--
         option needs: {
           title: string,
           type: "select",
@@ -95,38 +99,38 @@
           unit: string
           }
         -->
-        <div
-          v-for="(option, index) in item.expertOptions.filter((option) => option.type === 'select')"
-          :key="index"
-          class="selectBox w-full h-10 bg-[#242529] rounded-xl shadow-2xl text-gray-300"
-          :class="{
-            invisible: isExpertModeActive || ssvExpertModeActive || ssvDkgExpertModeActive || prometheusExpertModeActive,
-          }"
-        >
-          <img class="titleIcon" :src="option.icon" alt="icon" />
-          <span class="col-start-2 col-span-4 row-start-1 row-span-2 justify-start items-center flex w-full h-full">{{
-            option.title
-          }}</span>
+          <div
+            v-for="(option, index) in item.expertOptions.filter((option) => option.type === 'select')"
+            :key="index"
+            class="selectBox w-full h-10 bg-[#242529] rounded-xl shadow-2xl text-gray-300"
+            :class="{
+              invisible: isExpertModeActive || ssvExpertModeActive || ssvDkgExpertModeActive || prometheusExpertModeActive,
+            }"
+          >
+            <img class="titleIcon" :src="option.icon" alt="icon" />
+            <span class="col-start-2 col-span-4 row-start-1 row-span-2 justify-start items-center flex w-full h-full">{{
+              option.title
+            }}</span>
 
-          <select id="value" v-model="option.changeValue" class="toggleTextInput" @change="somethingIsChanged(option)">
-            <option v-for="(rate, idx) in option.value" :key="idx" :value="rate">{{ rate }} {{ option.unit }}</option>
-          </select>
-        </div>
+            <select id="value" v-model="option.changeValue" class="toggleTextInput" @change="somethingIsChanged(option)">
+              <option v-for="(rate, idx) in option.value" :key="idx" :value="rate">{{ rate }} {{ option.unit }}</option>
+            </select>
+          </div>
 
-        <!-- Fee recipient -->
-        <div
-          v-for="(option, index) in item.expertOptions.filter((option) => option.type === 'text')"
-          :key="index"
-          class="toggleTextBox w-full h-10 bg-[#242529] rounded-xl shadow-2xl text-gray-300"
-          :class="{
-            invisible: isExpertModeActive || ssvExpertModeActive || ssvDkgExpertModeActive || prometheusExpertModeActive,
-          }"
-        >
-          <img class="titleIcon" :src="option.icon" alt="icon" />
-          <span class="col-start-2 col-span-4 row-start-1 row-span-2 justify-start items-center flex w-full h-full">{{
-            option.title
-          }}</span>
-          <!-- <Transition name="slide-up">
+          <!-- Fee recipient -->
+          <div
+            v-for="(option, index) in item.expertOptions.filter((option) => option.type === 'text')"
+            :key="index"
+            class="toggleTextBox w-full h-10 bg-[#242529] rounded-xl shadow-2xl text-gray-300"
+            :class="{
+              invisible: isExpertModeActive || ssvExpertModeActive || ssvDkgExpertModeActive || prometheusExpertModeActive,
+            }"
+          >
+            <img class="titleIcon" :src="option.icon" alt="icon" />
+            <span class="col-start-2 col-span-4 row-start-1 row-span-2 justify-start items-center flex w-full h-full">{{
+              option.title
+            }}</span>
+            <!-- <Transition name="slide-up">
             <img
               v-if="option.buttonState"
               class="buttonOff"
@@ -142,10 +146,10 @@
               @click="buttonOn(option)"
             />
           </Transition> -->
-          <input v-model="option.changeValue" class="toggleTextInput" type="text" @input="somethingIsChanged(option)" />
-        </div>
+            <input v-model="option.changeValue" class="toggleTextInput" type="text" @input="somethingIsChanged(option)" />
+          </div>
 
-        <!--
+          <!--
         option needs: {
           title: string,
           type: "action",
@@ -153,64 +157,65 @@
           icon: string (path)
           }
         -->
-        <!-- toggle btn -->
-        <div
-          v-for="(option, index) in item.expertOptions.filter((option) => option.type === 'action')"
-          :key="index"
-          class="actionBox w-full h-10 bg-[#242529] rounded-xl shadow-2xl text-gray-300"
-          :class="{
-            invisible: isExpertModeActive || ssvExpertModeActive || ssvDkgExpertModeActive || prometheusExpertModeActive,
-          }"
-        >
-          <img class="titleIcon justify-self-center" :src="option.icon" alt="icon" />
-          <span class="actionBoxTitle">{{ option.title }}</span>
-          <div class="w-full flex justify-end items-center col-start-12 col-span-1 row-start-1 row-span-1">
-            <label class="relative inline-flex items-center cursor-pointer">
-              <input
-                v-model="option.changeValue"
-                :disabled="option.disabled"
-                type="checkbox"
-                name="check-button"
-                class="sr-only peer"
-                checked
-                @change="somethingIsChanged(option)"
-              />
-              <div
-                class="w-12 h-5 rounded-full peer bg-gray-700 peer-checked:after:translate-x-7 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all border-gray-600 peer-checked:bg-green-600 peer-checked:shadow-inner peer-checked:border-green-600 peer-checked:shadow-gray-600"
-              ></div>
-            </label>
+          <!-- toggle btn -->
+          <div
+            v-for="(option, index) in item.expertOptions.filter((option) => option.type === 'action')"
+            :key="index"
+            class="actionBox w-full h-10 bg-[#242529] rounded-xl shadow-2xl text-gray-300"
+            :class="{
+              invisible: isExpertModeActive || ssvExpertModeActive || ssvDkgExpertModeActive || prometheusExpertModeActive,
+            }"
+          >
+            <img class="titleIcon justify-self-center" :src="option.icon" alt="icon" />
+            <span class="actionBoxTitle">{{ option.title }}</span>
+            <div class="w-full flex justify-end items-center col-start-12 col-span-1 row-start-1 row-span-1">
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input
+                  v-model="option.changeValue"
+                  :disabled="option.disabled"
+                  type="checkbox"
+                  name="check-button"
+                  class="sr-only peer"
+                  checked
+                  @change="somethingIsChanged(option)"
+                />
+                <div
+                  class="w-12 h-5 rounded-full peer bg-gray-700 peer-checked:after:translate-x-7 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all border-gray-600 peer-checked:bg-green-600 peer-checked:shadow-inner peer-checked:border-green-600 peer-checked:shadow-gray-600"
+                ></div>
+              </label>
+            </div>
           </div>
-        </div>
-        <!-- toggle btn -->
-        <div
-          v-for="(option, index) in item.expertOptions.filter((option) => option.type === 'toggle')"
-          :key="index"
-          class="actionBox w-full h-10 bg-[#242529] rounded-xl shadow-2xl text-gray-300"
-          :class="{
-            invisible: isExpertModeActive || ssvExpertModeActive || ssvDkgExpertModeActive || prometheusExpertModeActive,
-          }"
-        >
-          <img class="titleIcon" :src="option.icon" alt="icon" />
-          <span class="col-start-2 col-span-4 row-start-1 row-span-2 justify-start items-center flex w-full h-full">{{
-            option.title
-          }}</span>
-          <div class="col-start-12 col-span-1 row-start-1 row-span-1 w-full flex justify-end items-center">
-            <label class="relative inline-flex items-center cursor-pointer">
-              <input
-                v-model="option.changeValue"
-                :disabled="option.disabled"
-                type="checkbox"
-                name="check-button"
-                class="sr-only peer"
-                checked
-                @change="somethingIsChanged(option)"
-              />
-              <div
-                class="w-12 h-5 rounded-full peer bg-gray-700 peer-checked:after:translate-x-7 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all border-gray-600 peer-checked:bg-green-600 peer-checked:shadow-inner peer-checked:border-green-600 peer-checked:shadow-gray-600"
-              ></div>
-            </label>
+          <!-- toggle btn -->
+          <div
+            v-for="(option, index) in item.expertOptions.filter((option) => option.type === 'toggle')"
+            :key="index"
+            class="actionBox w-full h-10 bg-[#242529] rounded-xl shadow-2xl text-gray-300"
+            :class="{
+              invisible: isExpertModeActive || ssvExpertModeActive || ssvDkgExpertModeActive || prometheusExpertModeActive,
+            }"
+          >
+            <img class="titleIcon" :src="option.icon" alt="icon" />
+            <span class="col-start-2 col-span-4 row-start-1 row-span-2 justify-start items-center flex w-full h-full">{{
+              option.title
+            }}</span>
+            <div class="col-start-12 col-span-1 row-start-1 row-span-1 w-full flex justify-end items-center">
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input
+                  v-model="option.changeValue"
+                  :disabled="option.disabled"
+                  type="checkbox"
+                  name="check-button"
+                  class="sr-only peer"
+                  checked
+                  @change="somethingIsChanged(option)"
+                />
+                <div
+                  class="w-12 h-5 rounded-full peer bg-gray-700 peer-checked:after:translate-x-7 peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all border-gray-600 peer-checked:bg-green-600 peer-checked:shadow-inner peer-checked:border-green-600 peer-checked:shadow-gray-600"
+                ></div>
+              </label>
+            </div>
           </div>
-        </div>
+        </template>
       </div>
       <!-- expert mode textarea -->
       <div
@@ -291,9 +296,10 @@
 <script>
 import ControlService from "@/store/ControlService";
 import { mapState, mapWritableState } from "pinia";
-import { useNodeManage } from "@/store/nodeManage";
+
 import { useNodeStore } from "@/store/theNode";
 import { useRestartService } from "@/composables/services";
+import { useSetups } from "@/store/setups";
 
 export default {
   props: {
@@ -305,6 +311,7 @@ export default {
     bgOpacity: {
       type: String,
       required: false,
+      default: "opacity-100",
     },
     leftDistance: {
       type: String,
@@ -332,9 +339,10 @@ export default {
     };
   },
   computed: {
-    ...mapState(useNodeManage, {
-      currentNetwork: "currentNetwork",
+    ...mapState(useSetups, {
+      selectedSetup: "selectedSetup",
     }),
+
     ...mapWritableState(useNodeStore, {
       hideConnectedLines: "hideConnectedLines",
     }),
@@ -350,7 +358,7 @@ export default {
   methods: {
     openDocs(docsUrl) {
       window.open(docsUrl, "_blank");
-      if (this.currentNetwork.network === "gnosis") window.open("https://docs.gnosischain.com/node/", "_blank");
+      if (this.selectedSetup.network === "gnosis") window.open("https://docs.gnosischain.com/node/", "_blank");
     },
 
     somethingIsChanged(item) {
@@ -360,11 +368,6 @@ export default {
 
     async readService() {
       this.item.yaml = await ControlService.getServiceYAML(this.item.config.serviceID);
-
-      let tekuGasLimit = "";
-      if (this.item.service === "TekuValidatorService") {
-        tekuGasLimit = await ControlService.readGasConfigFile(this.item.config.volumes[0].destinationPath);
-      }
 
       if (this.item.service === "SSVNetworkService") {
         this.item.ssvConfig = await ControlService.readSSVNetworkConfig(this.item.config.serviceID);
@@ -389,12 +392,6 @@ export default {
               if (this.item.yaml.includes(command)) {
                 let match = this.item.yaml.match(new RegExp(`${command}[:=]?([\\S*]*)`));
                 option.changeValue = match ? match[match.length - 1] : "";
-              } else if (this.item.service === "TekuValidatorService" && command == "--gas-limit") {
-                if (tekuGasLimit != null) {
-                  tekuGasLimit = tekuGasLimit.replace(/"/g, "");
-                }
-                option.changeValue = tekuGasLimit;
-                this.somethingIsChanged(option);
               } else {
                 option.changeValue = "";
               }
@@ -612,26 +609,6 @@ export default {
           serviceID: this.item.config.serviceID,
           config: this.item.prometheusConfig,
         });
-      }
-      if (this.item.service === "TekuValidatorService") {
-        if (this.item.yaml.includes("--gas-limit")) {
-          await ControlService.createGasConfigFile({
-            gasLimit: this.item.yaml.match(/^.*--gas-limit.*$/gm)[0].split("=")[1],
-            feeRecipient: this.item.yaml.match(/^.*fee-recipient.*$/gm)[0].split("=")[1],
-            configPath: this.item.config.volumes[0].destinationPath,
-          });
-          if (!this.item.yaml.includes("validators-proposer-config")) {
-            this.item.yaml = this.item.yaml.replace(
-              /^.*--gas-limit.*$/gm,
-              "  - --validators-proposer-config=" + this.item.config.volumes[0].servicePath + "/gas_config.json"
-            );
-          } else {
-            this.item.yaml = this.item.yaml.replace(/\n^.*--gas-limit.*$/gm, "");
-          }
-        } else if (!this.item.yaml.includes("--gas-limit") && this.item.yaml.includes("validators-proposer-config")) {
-          await ControlService.removeGasConfigFile(this.item.config.volumes[0].destinationPath);
-          this.item.yaml = this.item.yaml.replace(new RegExp(/\n^.*validators-proposer-config.*$/gm), "");
-        }
       }
       if (this.item.service === "LighthouseBeaconService") {
         if (!this.item.yaml.includes("--slasher\n") && this.item.yaml.includes("/opt/app/slasher")) {

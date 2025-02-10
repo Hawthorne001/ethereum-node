@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full col-start-20 col-span-full row-start-1 row-span-full grid grid-cols-12 grid-rows-12 px-1 gap-y-1">
+  <div class="h-full col-start-20 col-span-full row-start-1 row-span-full grid grid-cols-12 grid-rows-12 px-1 gap-y-[1px]">
     <ValidatorRewards />
     <ClientCommands @graffiti-panel="graffitiPanel" @import-remote="importRemote" @withdraw-multiple="withdrawMultiple" />
     <EpochDuty />
@@ -7,9 +7,9 @@
 </template>
 
 <script setup>
-import ValidatorRewards from "../components/management/ValidatorRewards.vue";
 import ClientCommands from "../components/management/ClientCommands.vue";
 import EpochDuty from "../components/management/EpochDuty.vue";
+import ValidatorRewards from "../components/management/ValidatorRewards.vue";
 
 const emit = defineEmits(["graffitiPanel", "importRemote", "withdrawMultiple"]);
 
