@@ -31,6 +31,7 @@ module.exports = {
           entitlements: "./node_modules/@sapien99/vue-cli-plugin-electron-builder-notarize/entitlements.mac.inherit.plist",
           gatekeeperAssess: false,
           artifactName: "Stereum-Launcher-${version}.${ext}",
+          x64ArchFiles: "**/node_modules/cpu-features/build/Release/cpufeatures.node",
         },
         win: {
           signtoolOptions: {
